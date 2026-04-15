@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmartLaundry Admin Panel</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; background-color: #f4f4f4; }
+        .container { max-width: 900px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        h1, h2 { text-align: center; color: #333; }
+        .income-box { background: #d1ecf1; color: #0c5460; padding: 15px; border-radius: 5px; text-align: center; margin-bottom: 20px; font-size: 1.2em; font-weight: bold; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
+        th { background-color: #007bff; color: white; }
+        select { padding: 5px; border-radius: 4px; border: 1px solid #ccc; }
+        button { cursor: pointer; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>SmartLaundry Admin</h1>
+    
+    <div class="income-box" id="incomeDisplay">Menghitung pendapatan...</div>
+
+    <h2>Daftar Pesanan Masuk</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Pelanggan</th>
+                <th>Layanan</th>
+                <th>Berat</th>
+                <th>Total</th>
+                <th>Status</th>
+                <th>Aksi</th>
+            </tr>
+        </thead>
+        <tbody id="ordersTable">
+            <!-- Data akan diisi lewat JavaScript -->
+        </tbody>
+    </table>
+</div>
+
+<script>
+    const apiUrl = 'http://localhost:3000'; // Admin berjalan di laptop jadi pakai localhost
+
+    async function loadOrders() {
+        const response = await fetch(`${apiUrl}/admin/orders`);
+        const orders = await response.json();
+        
+        const tbody = document.getElementById('ordersTable');
+        tbody.innerHTML = '';
+
+        orders.forEach(order => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${order.id}</td>
+                <td>${order.user_name}</td>
+                <td>${order.service_name}</td>
+                <td>${order.weight} kg</td>
+                <td>Rp ${order.total_price}</td>
+                <td>
+                    <select onchange="updateStatus(${order.id}, this.value)">
+                        <option value="Pending" ${order.status === 'Pending' ? 'selected' : ''}>Pending</option>
+                        <option value="Proses" ${order.status === 'Proses' ? 'selected' : ''}>Sedang Dicuci</option>
+                        <option value="Selesai" ${order.status === 'Selesai' ? 'selected' : ''}>Selesai</option>
+                        <option value="Diambil" ${order.status === 'Diambil' ? 'selected' : ''}>Diambil</option>
+                    </select>
+                </td>
+                <td><button onclick="deleteOrder(${order.id})" style="background:#dc3545; color:white; border:none; padding:5px 10px; border-radius:4px;">Hapus</button></td>
+            `;
+            tbody.appendChild(row);
+        });
+    }
+
+    async function updateStatus(id, newStatus) {
+        await fetch(`${apiUrl}/admin/orders/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: newStatus })
+        });
+        alert(`Status Order #${id} diubah menjadi ${newStatus}`);
+        loadIncome(); // Refresh pendapatan jika status jadi selesai
+    }
+
+    async function deleteOrder(id) {
+        if(confirm('Yakin hapus order ini?')) {
+            await fetch(`${apiUrl}/admin/orders/${id}`, { method: 'DELETE' }); // Belum kita buat endpoint deletenya di backend, tapi nanti bisa ditambah
+            location.reload(); 
+        }
+    }
+
+    async function loadIncome() {
+        const response = await fetch(`${apiUrl}/admin/income`);
+        const data = await response.json();
+        document.getElementById('incomeDisplay').innerText = `Total Pendapatan (Order Selesai): Rp ${data.total || 0}`;
+    }
+
+    // Auto refresh setiap 5 detik
+    loadOrders();
+    loadIncome();
+    setInterval(loadOrders, 5000);
+    setInterval(loadIncome, 5000);
+
+</script>
+
+</body>
+</html>
